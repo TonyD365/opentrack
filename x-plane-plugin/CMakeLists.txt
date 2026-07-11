@@ -31,13 +31,7 @@ if(LINUX OR APPLE)
             target_link_options(${self} PRIVATE -rdynamic -nodefaultlibs)
         endif()
 
-
-        if(APPLE)
-            set(xplane_plugin_install_dir "${opentrack-install-xplane}/opentrack/mac_x64")
-        else()
-            # X-Plane 32bit is dead since XP11 so we assume 64 bit now
-            set(xplane_plugin_install_dir "${opentrack-install-xplane}/opentrack/lin_x64")
-        endif()
+        set(xplane_plugin_install_dir "${opentrack-install-xplane}")
 
 
         target_compile_options(${self} PRIVATE -DOTR_REQUIRED )
