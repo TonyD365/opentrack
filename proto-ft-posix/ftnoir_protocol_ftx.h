@@ -73,6 +73,6 @@ class ftx_metadata : public Metadata
     Q_OBJECT
 
 public:
-    QString name() override { return tr("opentrack 2.0 Enhanced"); }
+    QString name() override { return tr("opentrackclient 1.0"); }
     QIcon icon() override { return QIcon(":/images/freetrack.png"); }
 };
