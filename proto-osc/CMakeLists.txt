@@ -16,6 +16,7 @@ if(SDK_OSCPACK)
         # Build and install it with 'make install' and set SDP_OSCPACK to /usr/local
         find_library(OSCPACK_STATIC_LIB liboscpack.a "${SDK_OSCPACK}/lib/")
         link_libraries(${OSCPACK_STATIC_LIB})
+        include_directories("${SDK_OSCPACK}/include/oscpack")
     else()
         link_libraries(oscpack)
     endif()
