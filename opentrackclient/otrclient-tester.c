@@ -4,7 +4,7 @@
 
  Linux:
 
- # assuming your isntall prefix is /usr/local
+ # assuming your install prefix is /usr/local
 
 
  If you do not require opentrackclient (recommended):
@@ -19,9 +19,9 @@
  macOS:
 
  Weakly link against the opentrackclient framework:
-        cc -DOTR_OPTIONAL otrclient-tester.c -F. -weak_framework opentrackclient -o otrclient-tester
+        cc -DOTR_OPTIONAL otrclient-tester.c -F. -weak_framework opentrackclient -o otrclient-tester -Wl,-rpath "$PWD"
  Or if you really require the opentrackclient library:
-        cc -DOTR_REQUIRED otrclient-tester.c -F. -framework opentrackclient -o otrclient-tester
+        cc -DOTR_REQUIRED otrclient-tester.c -F. -framework opentrackclient -o otrclient-tester -Wl,-rpath "$PWD"
 
 
  In Xcode add /Library/Application\ Support/opentrack/Frameworks/opentrackclient.framework to the target but set it to "optional" and don't embed it.

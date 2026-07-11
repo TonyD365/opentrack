@@ -124,8 +124,8 @@ if(LINUX OR APPLE)
         install(TARGETS
             "framework_opentrackclient" #"libopentrackclient" "framework_opentrackclient-loader_static"
             FRAMEWORK DESTINATION "${opentrack-install-opentrackclient-framework}"
-            LIBRARY DESTINATION "${opentrack-install-opentrackclient-lib}"
-            PUBLIC_HEADER DESTINATION "${opentrack-install-opentrackclient-include}"
+            #LIBRARY DESTINATION "${opentrack-install-opentrackclient-lib}"
+            #PUBLIC_HEADER DESTINATION "${opentrack-install-opentrackclient-include}"
         )
     else()
         # LINUX
@@ -177,8 +177,8 @@ if(LINUX OR APPLE)
         )
     endif()
 
-
-
+    otr_install_md_as_html("${CMAKE_CURRENT_SOURCE_DIR}/README.md" "${opentrack-install-opentrackclient-prefix}")
+  
     ######### TEST
 
     set(otrclient-tester-deps otrclient-tester.c)
@@ -213,8 +213,8 @@ if(LINUX OR APPLE)
             ${otrclient-tester-deps}
             DESTINATION "${opentrack-install-opentrackclient-example}"
         )
-        install(TARGETS ${targetname}
-            RUNTIME DESTINATION "${opentrack-install-opentrackclient-example}")
+        # install(TARGETS ${targetname}
+        #     RUNTIME DESTINATION "${opentrack-install-opentrackclient-example}")
 
     endfunction()
 
