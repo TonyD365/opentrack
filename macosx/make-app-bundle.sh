@@ -24,12 +24,10 @@ bindir="${4}"
 osx_arch="${5:-'unknownarch'}"
 macdeployqt_executable="${6:-macdeployqt}"
 
-if [ -n "$CODESIGN" ]
-then
- CODESIGN_IDENTITY=${CODESIGN_IDENTITY:-Developer ID Application}
- echo "Code-Sign-Identity is $CODESIGN_IDENTITY"
-fi
+# Developer ID Application
+CODESIGN_IDENTITY=${CODESIGN_IDENTITY:-"-"}
 
+echo "Code-Sign-Identity is $CODESIGN_IDENTITY"
 
 tmp="$(mktemp -d "/tmp/$APPNAME-tmp.XXXXXXX")"
 test $? -eq 0
@@ -45,7 +43,7 @@ SDK="$install/sdk"
 
 # Create an 512 resolution size for the icon (for retina displays mostly)
 #gm convert -size 512x512 "$dir/../gui/images/opentrack.png" "$tmp/opentrack.png"
-convert "$dir/../gui/images/opentrack.png" -filter triangle -resize 512x512 "$tmp/opentrack.png"
+magick convert "$dir/../gui/images/opentrack.png" -filter triangle -resize 512x512 "$tmp/opentrack.png"
 
 mkdir -p "$APPROOT/Contents/Resources/"
 
@@ -70,46 +68,43 @@ else
     echo "Not using macdeployqt to make the app standalone. Enable with env variable DEPLOY=1"
 fi
 
+# CODE SIGNING:
+
 function do_codesign() {
     codesign -vv --force --timestamp --options runtime --sign "$CODESIGN_IDENTITY" "$@"
 }
 
-if [ -n "$CODESIGN_IDENTITY" ]
-then
-    find "$APPROOT" -type f \( \
-        \( -path "*/Contents/Frameworks/*" -name "*.dylib" \) -o \
-        \( -path "*/Contents/PlugIns/*" \( -name "*.dylib" -o -name "*.onnx" \) \) -o \
-        \( -path "*/Contents/Resources/*" \( -name "*.dll" -o -name "*.exe" \) \) \
-    \) -print0 | while IFS= read -r -d '' file; do
-        do_codesign "$file"
+
+find "$APPROOT" -type f \( \
+    \( -path "*/Contents/Frameworks/*" -name "*.dylib" \) -o \
+    \( -path "*/Contents/PlugIns/*" \( -name "*.dylib" -o -name "*.onnx" \) \) -o \
+    \( -path "*/Contents/Resources/*" \( -name "*.dll" -o -name "*.exe" \) \) \
+\) -print0 | while IFS= read -r -d '' file; do
+    do_codesign "$file"
+done
+
+if [ -d "$APPROOT/Contents/Frameworks" ]; then
+    find "$APPROOT/Contents/Frameworks" -type d -name "*.framework" -print0 | while IFS= read -r -d '' fw; do
+        do_codesign "$fw"
     done
-
-    if [ -d "$APPROOT/Contents/Frameworks" ]; then
-        find "$APPROOT/Contents/Frameworks" -type d -name "*.framework" -print0 | while IFS= read -r -d '' fw; do
-            do_codesign "$fw"
-        done
-    fi
-
-    do_codesign --entitlements "$dir/entitlements.plist" "$APPROOT"
-    codesign -vvv --deep --strict "$APPROOT"
-
-
-    if [ -d "$XPLANE_PLUGIN" ]
-    then
-        # Sign X-Plane-Plugin
-        do_codesign  "$XPLANE_PLUGIN/opentrack/mac_x64/opentrack.xpl"
-        codesign -vvv --deep --strict "$XPLANE_PLUGIN/opentrack/mac_x64/opentrack.xpl"
-    fi
-
-    # Sign the opentrackclient framework
-    do_codesign "$SDK/opentrackclient.framework/Versions/A/opentrackclient"
-    do_codesign "$SDK//opentrackclient.framework"
-    codesign -vvv --deep --strict "$SDK//opentrackclient.framework"
-
-    do_codesign "$SDK/otrclient-tester"
-    codesign -vvv --deep --strict "$SDK/otrclient-tester"
-
 fi
+
+do_codesign --entitlements "$dir/entitlements.plist" "$APPROOT"
+codesign -vvv --deep --strict "$APPROOT"
+
+
+if [ -d "$XPLANE_PLUGIN" ]
+then
+    # Sign X-Plane-Plugin
+    do_codesign  "$XPLANE_PLUGIN/opentrack.xpl"
+    codesign -vvv --deep --strict "$XPLANE_PLUGIN/opentrack.xpl"
+fi
+
+# Sign the opentrackclient framework
+do_codesign "$SDK/opentrackclient.framework/Versions/A/opentrackclient"
+do_codesign "$SDK//opentrackclient.framework"
+codesign -vvv --deep --strict "$SDK//opentrackclient.framework"
+# end code sign
 
 # wine-bridge has it's own script)
 
@@ -156,7 +151,8 @@ then
                    --wait \
 
     xcrun stapler staple -v "$DMGFILE"
-
+else
+    echo "Not notarizing"
 fi
 
 
