@@ -64,14 +64,26 @@ jobs:
         run: |
           cmake --build "${{ github.workspace }}/build" \
             --config ${BUILD_TYPE} \
-            --target install \
             --parallel 2
 
-      - name: Find application
+      - name: Install and create macOS bundle
         run: |
-          echo "Installed files:"
-          find build -maxdepth 6 -print
+          cmake --install "${{ github.workspace }}/build" \
+            --config ${BUILD_TYPE}
 
+      - name: Inspect installation
+        run: |
+          echo "=== Install directory ==="
+          find build/install -maxdepth 5 -print
+
+          echo
+          echo "=== Application ==="
+          find build/install/opentrack.app -maxdepth 4 -print || true
+
+          echo
+          echo "=== Custom libraries ==="
+          find build/install -name "*.dylib" -print || true
+          
       - name: Verify application
         run: |
           APP=$(find build -name "opentrack.app" -type d | head -n 1)
