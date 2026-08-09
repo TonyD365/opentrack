@@ -17,7 +17,8 @@ jobs:
       - name: Checkout Opentrack 2024.1.1 matatata
         uses: actions/checkout@v4
         with:
-          ref: 2024.1.1-matatata.1
+          repository: matatata/opentrack
+          ref: de894ab1e0f5fb860976559d97ae007472a4c016
           submodules: true
           fetch-depth: 0
 
