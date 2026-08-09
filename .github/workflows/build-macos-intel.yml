@@ -1,0 +1,121 @@
+name: Build Opentrack macOS Intel
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  MACOSX_DEPLOYMENT_TARGET: "13.0"
+  CMAKE_OSX_DEPLOYMENT_TARGET: "13.0"
+  OTR_OSX_ARCH: "x86_64"
+
+jobs:
+  build:
+    name: Build macOS x86_64
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Show build environment
+        run: |
+          sw_vers
+          uname -m
+          xcrun --show-sdk-version
+          xcrun --show-sdk-path
+          clang --version
+          cmake --version
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install qt@5 cmake imagemagick
+
+      - name: Configure Qt 5
+        run: |
+          echo "PATH=/usr/local/opt/qt@5/bin:$PATH" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=/usr/local/opt/qt@5" >> "$GITHUB_ENV"
+          echo "Qt5_DIR=/usr/local/opt/qt@5" >> "$GITHUB_ENV"
+
+      - name: Verify Qt
+        run: |
+          which qmake
+          qmake -v
+          ls -la /usr/local/opt/qt@5
+
+      - name: Configure CMake
+        run: |
+          rm -rf build
+
+          cmake -S . -B build \
+            --toolchain cmake/apple.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+            -DCMAKE_INSTALL_PREFIX="$PWD/build/install"
+
+      - name: Build
+        run: |
+          cmake --build build \
+            --config Release \
+            --parallel 2
+
+      - name: Install
+        run: |
+          cmake --install build --config Release
+
+      - name: Find application
+        run: |
+          echo "Installed files:"
+          find build/install -maxdepth 5 -print
+
+      - name: Verify architecture
+        run: |
+          APP=$(find build/install -name "opentrack.app" -type d | head -n 1)
+
+          if [ -z "$APP" ]; then
+            echo "ERROR: opentrack.app not found"
+            exit 1
+          fi
+
+          echo "Application:"
+          echo "$APP"
+
+          echo "Main executable:"
+          file "$APP/Contents/MacOS/opentrack"
+
+          echo "Deployment target:"
+          otool -l "$APP/Contents/MacOS/opentrack" | \
+            grep -A3 LC_BUILD_VERSION || true
+
+          echo "Qt dependencies:"
+          otool -L "$APP/Contents/MacOS/opentrack" || true
+
+      - name: Package application
+        run: |
+          mkdir -p artifacts
+
+          APP=$(find build/install -name "opentrack.app" -type d | head -n 1)
+
+          if [ -z "$APP" ]; then
+            echo "ERROR: opentrack.app not found"
+            exit 1
+          fi
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$APP" \
+            "artifacts/opentrack-macos13-intel.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opentrack-macos13-intel
+          path: artifacts/opentrack-macos13-intel.zip
+          if-no-files-found: error
