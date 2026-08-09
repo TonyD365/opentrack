@@ -100,6 +100,57 @@ jobs:
             -name "*.dylib" \
             -print || true
 
+      # ============================================================
+      # Diagnose where Opentrack's own plugins were built/installed
+      # ============================================================
+      - name: Locate Opentrack plugins
+        run: |
+          set -e
+
+          echo "========================================"
+          echo "=== build/install directory ==="
+          echo "========================================"
+
+          find "${{ github.workspace }}/build/install" \
+            -maxdepth 6 \
+            -type f \
+            -print | sort
+
+          echo
+          echo "========================================"
+          echo "=== Plugin directories ==="
+          echo "========================================"
+
+          find "${{ github.workspace }}/build/install" \
+            -type d \
+            \( -name "Plugins" -o -name "plugins" \) \
+            -print
+
+          echo
+          echo "========================================"
+          echo "=== Plugin dylibs in build ==="
+          echo "========================================"
+
+          find "${{ github.workspace }}/build" \
+            -type f \
+            -name "*.dylib" \
+            \( \
+              -name "*proto*" -o \
+              -name "*tracker*" -o \
+              -name "*filter*" \
+            \) \
+            -print | sort
+
+          echo
+          echo "========================================"
+          echo "=== ALL dylibs in build ==="
+          echo "========================================"
+
+          find "${{ github.workspace }}/build" \
+            -type f \
+            -name "*.dylib" \
+            -print | sort
+
       - name: Fix macOS application bundle
         run: |
           set -e
@@ -302,6 +353,7 @@ jobs:
 
             echo
             echo "Dylib dependencies:"
+
             otool -L \
               "$APP/Contents/Frameworks/opentrack-user-interface.dylib"
 
