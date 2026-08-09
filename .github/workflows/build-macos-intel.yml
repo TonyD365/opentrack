@@ -66,55 +66,274 @@ jobs:
             --config ${BUILD_TYPE} \
             --parallel 2
 
-      - name: Install and create macOS bundle
+      - name: Install
         run: |
           cmake --install "${{ github.workspace }}/build" \
             --config ${BUILD_TYPE}
 
       - name: Inspect installation
         run: |
+          echo "========================================"
           echo "=== Install directory ==="
-          find build/install -maxdepth 5 -print
+          echo "========================================"
+
+          find "${{ github.workspace }}/build/install" \
+            -maxdepth 5 \
+            -print
 
           echo
+          echo "========================================"
           echo "=== Application ==="
-          find build/install/opentrack.app -maxdepth 4 -print || true
+          echo "========================================"
+
+          find "${{ github.workspace }}/build/install/opentrack.app" \
+            -maxdepth 5 \
+            -print || true
 
           echo
+          echo "========================================"
           echo "=== Custom libraries ==="
-          find build/install -name "*.dylib" -print || true
-          
+          echo "========================================"
+
+          find "${{ github.workspace }}/build/install" \
+            -type f \
+            -name "*.dylib" \
+            -print || true
+
+      - name: Fix macOS application bundle
+        run: |
+          set -e
+
+          APP="${{ github.workspace }}/build/install/opentrack.app"
+          INSTALL="${{ github.workspace }}/build/install"
+
+          echo "APP=$APP"
+          echo "INSTALL=$INSTALL"
+
+          test -d "$APP"
+          test -f "$APP/Contents/MacOS/opentrack"
+
+          echo
+          echo "========================================"
+          echo "=== Installed Library directory ==="
+          echo "========================================"
+
+          if [ -d "$INSTALL/Library" ]; then
+            find "$INSTALL/Library" \
+              -maxdepth 3 \
+              -type f \
+              -print
+          else
+            echo "WARNING: $INSTALL/Library does not exist"
+          fi
+
+          echo
+          echo "========================================"
+          echo "=== Create Frameworks directory ==="
+          echo "========================================"
+
+          mkdir -p "$APP/Contents/Frameworks"
+
+          echo
+          echo "========================================"
+          echo "=== Copy custom dylibs ==="
+          echo "========================================"
+
+          if [ -d "$INSTALL/Library" ]; then
+            find "$INSTALL/Library" \
+              -type f \
+              -name "*.dylib" \
+              -exec cp -f {} "$APP/Contents/Frameworks/" \;
+          fi
+
+          echo
+          echo "Frameworks after copying:"
+          find "$APP/Contents/Frameworks" \
+            -maxdepth 2 \
+            -print || true
+
+          echo
+          echo "========================================"
+          echo "=== Fix executable RPATH ==="
+          echo "========================================"
+
+          install_name_tool \
+            -add_rpath "@executable_path/../Frameworks" \
+            "$APP/Contents/MacOS/opentrack" || true
+
+          echo
+          echo "Current RPATH:"
+          otool -l "$APP/Contents/MacOS/opentrack" \
+            | grep -A3 LC_RPATH || true
+
+          echo
+          echo "========================================"
+          echo "=== Fix custom dylib reference ==="
+          echo "========================================"
+
+          if [ -f "$APP/Contents/Frameworks/opentrack-user-interface.dylib" ]; then
+
+            echo "Found opentrack-user-interface.dylib"
+
+            install_name_tool \
+              -change \
+              "$INSTALL/Library/opentrack-user-interface.dylib" \
+              "@rpath/opentrack-user-interface.dylib" \
+              "$APP/Contents/MacOS/opentrack" || true
+
+          else
+
+            echo "WARNING: opentrack-user-interface.dylib was not found"
+
+          fi
+
+          echo
+          echo "========================================"
+          echo "=== Run macdeployqt ==="
+          echo "========================================"
+
+          if command -v macdeployqt >/dev/null 2>&1; then
+
+            macdeployqt "$APP" \
+              -libpath="$INSTALL/Library" \
+              -verbose=2
+
+          else
+
+            echo "ERROR: macdeployqt not found"
+            exit 1
+
+          fi
+
+          echo
+          echo "========================================"
+          echo "=== Final Frameworks ==="
+          echo "========================================"
+
+          find "$APP/Contents/Frameworks" \
+            -maxdepth 3 \
+            -print || true
+
+          echo
+          echo "========================================"
+          echo "=== Final PlugIns ==="
+          echo "========================================"
+
+          find "$APP/Contents/PlugIns" \
+            -maxdepth 4 \
+            -print || true
+
       - name: Verify application
         run: |
-          APP=$(find build -name "opentrack.app" -type d | head -n 1)
+          set -e
 
-          if [ -z "$APP" ]; then
+          APP="${{ github.workspace }}/build/install/opentrack.app"
+
+          if [ ! -d "$APP" ]; then
             echo "ERROR: opentrack.app was not found"
             exit 1
           fi
 
-          echo "Found:"
+          echo "========================================"
+          echo "=== Application ==="
+          echo "========================================"
+
           echo "$APP"
 
-          echo "Executable architecture:"
+          echo
+          echo "========================================"
+          echo "=== Executable architecture ==="
+          echo "========================================"
+
           file "$APP/Contents/MacOS/opentrack"
 
-          echo "Deployment information:"
-          otool -l "$APP/Contents/MacOS/opentrack" | \
-            grep -A4 LC_BUILD_VERSION || true
+          echo
+          echo "========================================"
+          echo "=== Deployment information ==="
+          echo "========================================"
 
-          echo "Linked libraries:"
+          otool -l "$APP/Contents/MacOS/opentrack" \
+            | grep -A4 LC_BUILD_VERSION || true
+
+          echo
+          echo "========================================"
+          echo "=== RPATH ==="
+          echo "========================================"
+
+          otool -l "$APP/Contents/MacOS/opentrack" \
+            | grep -A3 LC_RPATH || true
+
+          echo
+          echo "========================================"
+          echo "=== Linked libraries ==="
+          echo "========================================"
+
           otool -L "$APP/Contents/MacOS/opentrack"
+
+          echo
+          echo "========================================"
+          echo "=== Frameworks ==="
+          echo "========================================"
+
+          find "$APP/Contents/Frameworks" \
+            -maxdepth 2 \
+            -print || true
+
+          echo
+          echo "========================================"
+          echo "=== PlugIns ==="
+          echo "========================================"
+
+          find "$APP/Contents/PlugIns" \
+            -maxdepth 4 \
+            -print || true
+
+          echo
+          echo "========================================"
+          echo "=== Check custom dylib ==="
+          echo "========================================"
+
+          if [ -f "$APP/Contents/Frameworks/opentrack-user-interface.dylib" ]; then
+
+            echo "SUCCESS: opentrack-user-interface.dylib exists"
+
+            file \
+              "$APP/Contents/Frameworks/opentrack-user-interface.dylib"
+
+            echo
+            echo "Dylib dependencies:"
+            otool -L \
+              "$APP/Contents/Frameworks/opentrack-user-interface.dylib"
+
+          else
+
+            echo "ERROR: opentrack-user-interface.dylib is missing"
+            exit 1
+
+          fi
 
       - name: Package
         run: |
+          set -e
+
           mkdir -p artifacts
 
-          APP=$(find build -name "opentrack.app" -type d | head -n 1)
+          APP="${{ github.workspace }}/build/install/opentrack.app"
 
-          ditto -c -k --sequesterRsrc --keepParent \
+          test -d "$APP"
+
+          ditto -c -k \
+            --sequesterRsrc \
+            --keepParent \
             "$APP" \
             "artifacts/opentrack-macos13-intel.zip"
+
+          echo
+          echo "========================================"
+          echo "=== Artifact ==="
+          echo "========================================"
+
+          ls -lh artifacts/opentrack-macos13-intel.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
