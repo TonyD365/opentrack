@@ -237,7 +237,30 @@ jobs:
             echo "WARNING: opentrack-user-interface.dylib was not found"
 
           fi
+          echo
+          echo "========================================"
+          echo "=== Copy Opentrack plugins ==="
+          echo "========================================"
 
+          mkdir -p "$APP/Contents/PlugIns/opentrack"
+
+          if [ -d "$INSTALL/Plugins" ]; then
+
+            cp -R "$INSTALL/Plugins/"* \
+            "$APP/Contents/PlugIns/opentrack/"
+
+          else
+
+            echo "ERROR: $INSTALL/Plugins does not exist"
+            exit 1
+
+          fi
+
+          echo
+          echo "Opentrack plugins:"
+          find "$APP/Contents/PlugIns/opentrack" \
+            -maxdepth 2 \
+            -print
           echo
           echo "========================================"
           echo "=== Run macdeployqt ==="
